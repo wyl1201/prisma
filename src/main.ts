@@ -1,23 +1,33 @@
-import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
-import { AppModule } from './app.module';
+import { HttpAdapterHost, NestFactory, Reflector } from '@nestjs/core'
+import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common'
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger'
+import { PrismaClientExceptionFilter } from 'nestjs-prisma'
+import { AppModule } from './app.module'
+// import { PrismaClientExceptionFilter } from './prisma-client-exception/prisma-client-exception.filter'
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule)
 
   // ValidationPipe
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true }))
+
+  // Interceptors
+  app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)))
+
+  // Filter
+  const { httpAdapter } = app.get(HttpAdapterHost)
+  app.useGlobalFilters(new PrismaClientExceptionFilter(httpAdapter))
 
   // Swagger
   const config = new DocumentBuilder()
     .setTitle('Median')
     .setDescription('The Median API description')
     .setVersion('0.1')
-    .build();
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document);
+    .addBearerAuth()
+    .build()
+  const document = SwaggerModule.createDocument(app, config)
+  SwaggerModule.setup('api', app, document)
 
-  await app.listen(3000);
+  await app.listen(3000)
 }
-bootstrap();
+bootstrap()
